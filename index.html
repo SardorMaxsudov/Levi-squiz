@@ -406,6 +406,7 @@ mark{background:rgba(124,106,247,.22);color:var(--a2);border-radius:3px;padding:
     <button class="atab on" id="at-u" onclick="atab('u')">Foydalanuvchilar</button>
     <button class="atab" id="at-f" onclick="atab('f')">Jildlar</button>
     <button class="atab" id="at-t" onclick="atab('t')">Testlar</button>
+    <button class="atab" id="at-i" onclick="atab('i')">&#x1F4E5; Import</button>
   </div>
   <div id="ab-u">
     <div class="sg3">
@@ -420,6 +421,59 @@ mark{background:rgba(124,106,247,.22);color:var(--a2);border-radius:3px;padding:
   </div>
   <div id="ab-f" style="display:none"><div id="af-l"></div><p id="anf" class="muted" style="display:none;text-align:center;padding:2rem">Hali jildlar yo'q.</p></div>
   <div id="ab-t" style="display:none"><div id="at-l"></div><p id="ant" class="muted" style="display:none;text-align:center;padding:2rem">Hali testlar yo'q.</p></div>
+  <div id="ab-i" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:8px">&#x1F4E5; Word fayldan test import qilish</h3>
+      <div style="font-size:13px;color:var(--t2);line-height:1.8;margin-bottom:16px;background:var(--s2);border-radius:10px;padding:14px">
+        <div style="font-weight:600;color:var(--t);margin-bottom:8px">Fayl formati:</div>
+        <div><code style="color:var(--a2)">1. Savol matni</code></div>
+        <div><code style="color:var(--a2)">A) Variant A</code></div>
+        <div><code style="color:var(--a2)">B) Variant B*</code></div>
+        <div><code style="color:var(--a2)">C) Variant C</code></div>
+        <div style="margin-top:8px;font-size:12px;color:var(--t3)">&#x2022; To'g'ri javob oxiriga <strong style="color:var(--gold)">*</strong> belgisi qo'ying<br>&#x2022; Savollar orasida bo'sh qator bo'lsin<br>&#x2022; 2 dan 8 tagacha variant bo'lishi mumkin</div>
+      </div>
+      <div class="field"><label>Test nomi *</label><input id="imp-name" placeholder="Test nomini kiriting..."></div>
+      <div class="field"><label>Tavsif *</label><textarea id="imp-desc" rows="2" placeholder="Bu test nima haqida?"></textarea></div>
+      <div class="field">
+        <label>Barcha savollar uchun vaqt (soniya) *</label>
+        <input type="number" id="imp-time" value="30" min="5" max="300" style="width:120px">
+      </div>
+      <div class="field">
+        <label>Ko'rinish *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div class="so" id="imp-sp" onclick="impSt('public')"><div class="so-i">&#x1F30D;</div><div class="so-l">Public</div><div class="so-d">Hamma bepul</div></div>
+          <div class="so" id="imp-sv" onclick="impSt('private')"><div class="so-i">&#x1F512;</div><div class="so-l">Private</div><div class="so-d">Faqat siz</div></div>
+          <div class="so" id="imp-spr" onclick="impSt('premium')"><div class="so-i">&#x1F4B0;</div><div class="so-l">Premium</div><div class="so-d">Pullik test</div></div>
+        </div>
+      </div>
+      <div class="field" id="imp-price-field" style="display:none">
+        <label>Narx (so'mda) *</label>
+        <input type="number" id="imp-price" placeholder="Masalan: 10000" min="1000" style="width:200px">
+      </div>
+      <div class="field">
+        <label>.docx fayl yuklang</label>
+        <div id="imp-drop" style="border:2px dashed var(--b2);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s">
+          <div style="font-size:2rem;margin-bottom:8px">&#x1F4C4;</div>
+          <div style="font-size:14px;font-weight:500;margin-bottom:4px">Word faylni tanlang</div>
+          <div style="font-size:12px;color:var(--t2)">.docx formatida</div>
+          <input type="file" id="imp-file" accept=".docx" style="display:none">
+        </div>
+      </div>
+      <div class="err" id="imp-e"></div>
+      <button class="btn bf" style="margin-top:6px" id="imp-parse-btn" disabled>&#x1F50D; Tahlil qilish</button>
+    </div>
+    <div id="imp-preview" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h3>Aniqlangan savollar <span id="imp-qcount" style="font-size:12px;color:var(--t2);font-weight:400"></span></h3>
+        <button class="btn bg" style="padding:7px 12px;font-size:12px" onclick="impReset()">Bekor qilish</button>
+      </div>
+      <div id="imp-ql" style="margin-bottom:16px"></div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn bf" id="imp-save-btn">&#x1F4BE; Testni saqlash</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- CREATE TEST -->
@@ -1277,7 +1331,134 @@ async function loadPrem(){
     el.querySelectorAll('[data-pshrt]').forEach(b=>b.onclick=()=>shareLink('t',b.dataset.pshrt,''));
   }catch(e){el.innerHTML=`<p class="muted" style="padding:2rem;text-align:center">Xatolik: ${e.message}</p>`;}
 }
-window.atab=t=>{['u','f','t'].forEach(x=>{$('at-'+x).className='atab'+(x===t?' on':'');$('ab-'+x).style.display=x===t?'block':'none';});};
+window.atab=t=>{['u','f','t','i'].forEach(x=>{$('at-'+x).className='atab'+(x===t?' on':'');$('ab-'+x).style.display=x===t?'block':'none';});};
+
+/* ===== IMPORT ===== */
+let impSel='',impDraft=[],impParsed=[];
+window.impSt=s=>{
+  impSel=s;
+  $('imp-sp').className='so'+(s==='public'?' sp':'');
+  $('imp-sv').className='so'+(s==='private'?' sr':'');
+  $('imp-spr').className='so'+(s==='premium'?' spr':'');
+  $('imp-price-field').style.display=s==='premium'?'block':'none';
+  if(s!=='premium')$('imp-price').value='';
+};
+function impReset(){
+  impDraft=[];impParsed=[];
+  $('imp-preview').style.display='none';
+  $('imp-ql').innerHTML='';
+  $('imp-file').value='';
+  $('imp-drop').innerHTML=`<div style="font-size:2rem;margin-bottom:8px">&#x1F4C4;</div><div style="font-size:14px;font-weight:500;margin-bottom:4px">Word faylni tanlang</div><div style="font-size:12px;color:var(--t2)">.docx formatida</div><input type="file" id="imp-file" accept=".docx" style="display:none">`;
+  $('imp-file').onchange=onImpFile;
+  $('imp-drop').onclick=()=>$('imp-file').click();
+  $('imp-parse-btn').disabled=true;
+  $('imp-e').textContent='';
+}
+function parseDocxText(txt){
+  // Har qatorni tozalaymiz
+  const lines=txt.split(/
+?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const questions=[];
+  let cur=null;
+  const qReg=/^(\d+)[.)\s]+(.+)/;
+  const optReg=/^([A-Ha-h])[.)\s]+(.+)/;
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    const qm=l.match(qReg);
+    const om=l.match(optReg);
+    if(qm){
+      if(cur&&cur.opts.length>=2)questions.push(cur);
+      cur={q:qm[2].trim(),opts:[],ci:-1};
+    } else if(om&&cur){
+      let optText=om[2].trim();
+      const isCorrect=optText.endsWith('*');
+      if(isCorrect){optText=optText.slice(0,-1).trim();cur.ci=cur.opts.length;}
+      cur.opts.push(optText);
+    }
+  }
+  if(cur&&cur.opts.length>=2)questions.push(cur);
+  return questions;
+}
+function renderImpPreview(){
+  const t=parseInt($('imp-time').value)||30;
+  impDraft=impParsed.map(q=>({...q,t}));
+  const AL2=['A','B','C','D','E','F','G','H'];
+  $('imp-qcount').textContent=`(${impDraft.length} ta savol)`;
+  $('imp-ql').innerHTML=impDraft.map((q,qi)=>`
+    <div class="card" style="margin-bottom:10px" id="impq-${qi}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div class="qn" style="min-width:26px;height:26px;font-size:12px">${qi+1}</div>
+        <textarea style="flex:1;min-height:40px;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--b2);background:var(--s2);color:var(--t);font-family:inherit;resize:vertical" onchange="impEditQ(${qi},this.value)">${q.q}</textarea>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${q.opts.map((o,oi)=>`
+          <div style="display:flex;align-items:center;gap:7px">
+            <input type="radio" name="impcor-${qi}" value="${oi}" ${oi===q.ci?'checked':''} onchange="impEditCor(${qi},${oi})" style="accent-color:var(--a);width:15px;height:15px;flex-shrink:0">
+            <span style="font-size:11px;color:var(--t3);width:14px">${AL2[oi]}</span>
+            <input type="text" value="${o}" style="flex:1;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid ${oi===q.ci?'var(--g)':'var(--b2)'};background:var(--s2);color:var(--t);font-family:inherit" onchange="impEditOpt(${qi},${oi},this.value)" oninput="this.style.borderColor='${oi===q.ci?'var(--g)':'var(--b2)'}'" id="impo-${qi}-${oi}">
+          </div>`).join('')}
+      </div>
+      ${q.ci===-1?'<div style="font-size:12px;color:var(--r);margin-top:6px">&#x26A0; To'g'ri javob belgilanmagan!</div>':''}
+    </div>`).join('');
+  $('imp-preview').style.display='block';
+}
+window.impEditQ=(qi,v)=>{impDraft[qi].q=v;};
+window.impEditOpt=(qi,oi,v)=>{impDraft[qi].opts[oi]=v;};
+window.impEditCor=(qi,oi)=>{
+  impDraft[qi].ci=oi;
+  // Ranglarni yangilaymiz
+  impDraft[qi].opts.forEach((_,i)=>{const el=$('impo-'+qi+'-'+i);if(el)el.style.borderColor=i===oi?'var(--g)':'var(--b2)';});
+};
+$('imp-drop').onclick=()=>$('imp-file').click();
+function onImpFile(e){
+  const f=e.target.files[0];if(!f)return;
+  $('imp-drop').innerHTML=`<div style="font-size:2rem;margin-bottom:8px">&#x1F4C4;</div><div style="font-size:14px;font-weight:500">${f.name}</div><div style="font-size:12px;color:var(--g);margin-top:4px">&#x2713; Yuklandi</div>`;
+  $('imp-parse-btn').disabled=false;
+}
+$('imp-file').onchange=onImpFile;
+$('imp-parse-btn').onclick=async()=>{
+  const e=$('imp-e');e.textContent='';
+  const f=$('imp-file').files[0];
+  if(!f){e.textContent='Fayl tanlang!';return;}
+  const b=$('imp-parse-btn');b.disabled=true;b.textContent='...';
+  try{
+    // mammoth.js orqali docx ni plain text ga o'giramiz
+    const mammoth=await import('https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js');
+    const arr=await f.arrayBuffer();
+    const res=await mammoth.extractRawText({arrayBuffer:arr});
+    impParsed=parseDocxText(res.value);
+    if(!impParsed.length){e.textContent="Savollar topilmadi. Fayl formatini tekshiring!";b.disabled=false;b.textContent='&#x1F50D; Tahlil qilish';return;}
+    renderImpPreview();
+  }catch(err){e.textContent='Xatolik: '+err.message;}
+  b.disabled=false;b.textContent='&#x1F50D; Tahlil qilish';
+};
+$('imp-save-btn').onclick=async()=>{
+  const e=$('imp-e');e.textContent='';
+  const name=$('imp-name').value.trim();
+  const desc=$('imp-desc').value.trim();
+  const t=parseInt($('imp-time').value)||30;
+  if(!name){e.textContent='Test nomini kiriting!';return;}
+  if(!desc){e.textContent='Tavsifni kiriting!';return;}
+  if(!impSel){e.textContent="Ko'rinishni tanlang!";return;}
+  const price=parseInt($('imp-price').value)||0;
+  if(impSel==='premium'&&price<1000){e.textContent='Premium uchun narx kiriting (min 1000)!';return;}
+  const bad=impDraft.find(q=>q.ci===-1||!q.q.trim());
+  if(bad){e.textContent="Barcha savollarda to'g'ri javob belgilanishi kerak!";return;}
+  // Vaqtni qo'shamiz
+  const questions=impDraft.map(q=>({...q,t}));
+  const realStatus=impSel==='premium'?'public':impSel;
+  const b=$('imp-save-btn');b.disabled=true;b.textContent='...';
+  try{
+    await addDoc(collection(db,'tests'),{name,description:desc,status:realStatus,isPremium:impSel==='premium',price:impSel==='premium'?price:0,shuffleMode:'none',questions,createdBy:cUser.uid,createdByUsername:cUname,createdAt:serverTimestamp()});
+    alert('"'+name+'" muvaffaqiyatli saqlandi!');
+    // Reset
+    $('imp-name').value='';$('imp-desc').value='';$('imp-time').value='30';
+    impSel='';$('imp-sp').className='so';$('imp-sv').className='so';$('imp-spr').className='so';
+    $('imp-price-field').style.display='none';
+    impReset();
+  }catch(err){e.textContent='Xatolik: '+err.message;}
+  b.disabled=false;b.textContent='&#x1F4BE; Testni saqlash';
+};
 </script>
 </body>
 </html>

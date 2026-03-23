@@ -817,7 +817,7 @@ $('btn-blb').onclick=()=>go('s-lbs');$('btn-bglb').onclick=()=>go('s-home');
 $('btn-rh').onclick=()=>go('s-home');$('btn-bprofile').onclick=()=>go('s-home');
 $('btn-bprem').onclick=()=>go('s-home');
 $('btn-ra').onclick=()=>{aQs=aFolder.questions||[];cq=0;sc=0;ans=[];go('s-qz');showQ();};
-$('btn-rlb').onclick=()=>{if(pMode==='fl'&&aFolder?.id)showFlLb(aFolder);else{go('s-glb');loadGlb();}};
+$('btn-rlb').onclick=()=>{ const lbTestId=pMode==='fl'?(aFolder.testId||aFolder.id):aFolder.id; if(lbTestId)showTestLb({id:lbTestId,name:aFolder.name}); else{go('s-glb');loadGlb();} };
 $('btn-sq').onclick=startQuiz;$('btn-oa').onclick=subOpt;$('btn-fa').onclick=subFree;
 $('btn-st').onclick=()=>{
   if(!tMeta){alert("Avval test ma'lumotlari!");return;}
@@ -1159,8 +1159,11 @@ async function finish(){
     await updateDoc(doc(db,'users',cUser.uid),{coins:increment(sc)});
     cCoins+=sc;$('nav-c').textContent=cCoins;
     $('rs-ce').style.display='flex';$('rs-cn').textContent=sc;
-    if(aFolder.id){
-      const lbr=doc(db,'folders',aFolder.id,'leaderboard',cUser.uid);
+    // Har doim test uchun alohida leaderboard yozamiz
+    // pMode==='fl' bo'lsa aFolder.testId dan testId olamiz, aks holda aFolder.id testId
+    const lbTestId=pMode==='fl'?(aFolder.testId||aFolder.id):aFolder.id;
+    if(lbTestId){
+      const lbr=doc(db,'tests',lbTestId,'leaderboard',cUser.uid);
       const ex=await getDoc(lbr);
       if(!ex.exists())await setDoc(lbr,{username:cUname,score:sc,total:aQs.length,pct,date:new Date().toLocaleDateString('uz'),avatar:cAv});
     }
@@ -1188,24 +1191,25 @@ async function loadLbs(){
   const el=$('lbs-l'),no=$('lbs-no');
   el.innerHTML='<div style="text-align:center;padding:2rem"><div class="loader" style="margin:0 auto"></div></div>';
   try{
-    const[s1,s2]=await Promise.all([getDocs(query(collection(db,'folders'),where('status','==','public'))),getDocs(query(collection(db,'folders'),where('createdBy','==',cUser.uid)))]);
-    const seen=new Set();let fls=[];
-    [...s1.docs,...s2.docs].forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);fls.push({id:d.id,...d.data()});}});
-    fls.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-    if(!fls.length){el.innerHTML='';no.style.display='block';return;}
+    // Testlar ro'yxatini ko'rsat (public + o'zining testlari)
+    const[s1,s2]=await Promise.all([getDocs(query(collection(db,'tests'),where('status','==','public'))),getDocs(query(collection(db,'tests'),where('createdBy','==',cUser.uid)))]);
+    const seen=new Set();let ts=[];
+    [...s1.docs,...s2.docs].forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);ts.push({id:d.id,...d.data()});}});
+    ts.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if(!ts.length){el.innerHTML='';no.style.display='block';return;}
     no.style.display='none';
-    el.innerHTML=fls.map(f=>`<div class="fc" data-lbfl="${f.id}" data-lbnm="${f.name}"><div style="font-size:20px">&#x1F3C6;</div><div style="flex:1"><div class="fn">${f.name}</div><div class="fm">${(f.questions||[]).length} ta &middot; @${f.createdByUsername}</div></div><span style="color:var(--t2);font-size:18px">›</span></div>`).join('');
-    el.querySelectorAll('[data-lbfl]').forEach(c=>c.onclick=()=>showFlLb({id:c.dataset.lbfl,name:c.dataset.lbnm}));
+    el.innerHTML=ts.map(t=>`<div class="fc" data-lbtid="${t.id}" data-lbnm="${t.name}"><div style="font-size:20px">&#x1F3C6;</div><div style="flex:1"><div class="fn">${t.name}</div><div class="fm">${(t.questions||[]).length} ta &middot; @${t.createdByUsername}</div></div><span style="color:var(--t2);font-size:18px">›</span></div>`).join('');
+    el.querySelectorAll('[data-lbtid]').forEach(c=>c.onclick=()=>showTestLb({id:c.dataset.lbtid,name:c.dataset.lbnm}));
   }catch(e){el.innerHTML=`<p class="muted" style="padding:2rem;text-align:center">Xatolik: ${e.message}</p>`;}
 }
-async function showFlLb(f){
-  $('lb-t').textContent=f.name+' reytingi';
+async function showTestLb(t){
+  $('lb-t').textContent=t.name+' reytingi';
   $('btn-blb').onclick=()=>go('s-lbs');
   const el=$('lb-l'),no=$('lb-no');
   el.innerHTML='<div style="text-align:center;padding:2rem"><div class="loader" style="margin:0 auto"></div></div>';
   go('s-lb');
   try{
-    const sn=await getDocs(collection(db,'folders',f.id,'leaderboard'));
+    const sn=await getDocs(collection(db,'tests',t.id,'leaderboard'));
     if(!sn.size){el.innerHTML='';no.style.display='block';return;}
     no.style.display='none';
     const entries=sn.docs.map(d=>d.data()).sort((a,b)=>b.pct-a.pct||b.score-a.score);
@@ -1213,6 +1217,8 @@ async function showFlLb(f){
     el.innerHTML=entries.slice(0,50).map((e,j)=>`<div class="lbr ${j<3?'g3':''} ${e.username===cUname?'me':''}"><div class="lbrank">${medals[j]||(j+1)}</div>${avHtmlLb(e.avatar||'',e.username,40)}<div style="flex:1"><div style="font-size:14px;font-weight:500">@${e.username}${e.username===cUname?' <span style="font-size:11px;color:var(--g)">(siz)</span>':''}</div><div style="font-size:12px;color:var(--t3)">${e.date}</div></div><div style="text-align:right"><div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--a2)">${e.pct}%</div><div style="font-size:11px;color:var(--t3)">${e.score}/${e.total}</div></div></div>`).join('');
   }catch(e){el.innerHTML=`<p class="muted" style="padding:2rem;text-align:center">Xatolik: ${e.message}</p>`;}
 }
+// Eski showFlLb — endi showTestLb ga yo'naltiradi (agar eski kod ishlatsa)
+function showFlLb(f){return showTestLb(f);}
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 function openSrch(){$('sov').classList.add('open');loadAllTs().then(()=>$('si').focus());}
 function closeSrch(){$('sov').classList.remove('open');$('si').value='';$('sr').innerHTML='<p style="text-align:center;color:var(--t3);font-size:14px;padding:1rem">Qidirish uchun yozing...</p>';}

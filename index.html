@@ -816,7 +816,7 @@ $('btn-bfl').onclick=()=>go('s-home');$('btn-blbs').onclick=()=>go('s-home');
 $('btn-blb').onclick=()=>go('s-lbs');$('btn-bglb').onclick=()=>go('s-home');
 $('btn-rh').onclick=()=>go('s-home');$('btn-bprofile').onclick=()=>go('s-home');
 $('btn-bprem').onclick=()=>go('s-home');
-$('btn-ra').onclick=()=>{aQs=aFolder.questions||[];cq=0;sc=0;ans=[];go('s-qz');showQ();};
+$('btn-ra').onclick=()=>startQuiz();
 $('btn-rlb').onclick=()=>{ const lbTestId=pMode==='fl'?(aFolder.testId||aFolder.id):aFolder.id; if(lbTestId)showTestLb({id:lbTestId,name:aFolder.name}); else{go('s-glb');loadGlb();} };
 $('btn-sq').onclick=startQuiz;$('btn-oa').onclick=subOpt;$('btn-fa').onclick=subFree;
 $('btn-st').onclick=()=>{
@@ -1079,7 +1079,23 @@ function openNm(){
   }
   $('nm-q').textContent=aQs.length;go('s-nm');
 }
-function startQuiz(){cq=0;sc=0;ans=[];go('s-qz');showQ();}
+function startQuiz(){
+  cq=0;sc=0;ans=[];
+  // Har safar testni boshlaganda shuffleMode bo'yicha aralashtir
+  const mode=aFolder.shuffleMode||'none';
+  let qs=aFolder.questions?aFolder.questions.map(q=>({...q,opts:q.opts?[...q.opts]:q.opts})):[];
+  if(mode==='both'||mode==='questions') qs=shuffleArr(qs);
+  if(mode==='both'||mode==='answers'){
+    qs=qs.map(q=>{
+      if(!q.opts||!q.opts.length)return q;
+      const correctText=q.opts[q.ci];
+      const shuffled=shuffleArr([...q.opts]);
+      return{...q,opts:shuffled,ci:shuffled.indexOf(correctText)};
+    });
+  }
+  aQs=qs;
+  go('s-qz');showQ();
+}
 function showQ(){
   done=false;sOpt=-1;
   const q=aQs[cq];

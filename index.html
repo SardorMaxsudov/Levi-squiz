@@ -551,7 +551,7 @@ mark{background:rgba(124,106,247,.22);color:var(--a2);border-radius:3px;padding:
 
 <!-- QUIZ -->
 <div class="scr" id="s-qz">
-  <div class="pb" style="margin-top:52px"><div class="pf" id="pf" style="width:0%"></div></div>
+  <div style="padding-top:52px;padding-bottom:6px;font-size:11px;color:var(--t3);font-weight:500;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="qz-title"></div><div class="pb"><div class="pf" id="pf" style="width:0%"></div></div>
   <div class="tw">
     <div class="tr">
       <svg width="80" height="80" viewBox="0 0 80 80">
@@ -628,9 +628,18 @@ mark{background:rgba(124,106,247,.22);color:var(--a2);border-radius:3px;padding:
 <div class="mbg" id="fm-bg" style="display:none">
   <div class="modal">
     <h3 style="margin-bottom:14px">Jildga saqlash</h3>
-    <div class="field"><label>Jild nomi</label><input id="fm-n" placeholder="Masalan: Tarix 8-sinf..." maxlength="60"></div>
-    <div style="font-size:13px;color:var(--t2);margin-bottom:16px">Ko'rinish: <span id="fm-st"></span> &middot; <span id="fm-qc"></span> ta savol</div>
-    <div style="display:flex;gap:8px">
+    <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Ko'rinish: <span id="fm-st"></span> &middot; <span id="fm-qc"></span> ta savol</div>
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="tab on" id="fm-tab-new" onclick="fmTab('new')">&#x2795; Yangi jild</button>
+      <button class="tab" id="fm-tab-ex" onclick="fmTab('ex')">&#x1F4C2; Mavjud jildga</button>
+    </div>
+    <div id="fm-pane-new">
+      <div class="field"><label>Jild nomi</label><input id="fm-n" placeholder="Masalan: Tarix 8-sinf..." maxlength="60"></div>
+    </div>
+    <div id="fm-pane-ex" style="display:none">
+      <div id="fm-fl-list" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:4px"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn bf" id="btn-fmc">Saqlash</button>
       <button class="btn bg" id="btn-fmx">Bekor</button>
     </div>
@@ -1018,24 +1027,62 @@ async function loadMT(){
 async function playDirect(tid){
   const td=await getDoc(doc(db,'tests',tid));if(!td.exists())return;
   const t=td.data();
-  pMode='mt';aFolder={id:tid,name:t.name,questions:t.questions||[],status:t.status,isPremium:t.isPremium||false,price:t.price||0,createdByUsername:t.createdByUsername||cUname};
+  pMode='mt';aFolder={id:tid,name:t.name,questions:t.questions||[],status:t.status,isPremium:t.isPremium||false,price:t.price||0,createdByUsername:t.createdByUsername||cUname,shuffleMode:t.shuffleMode||'none'};
   aQs=t.questions||[];openNm();
 }
 async function delTest(tid){if(!confirm("O'chirasizmi?"))return;await deleteDoc(doc(db,'tests',tid));loadMT();}
+let fmMode='new';let fmSelFid=null;
+function fmTab(tab){
+  fmMode=tab;fmSelFid=null;
+  $('fm-tab-new').className='tab'+(tab==='new'?' on':'');
+  $('fm-tab-ex').className='tab'+(tab==='ex'?' on':'');
+  $('fm-pane-new').style.display=tab==='new'?'block':'none';
+  $('fm-pane-ex').style.display=tab==='ex'?'block':'none';
+  if(tab==='ex')loadFmFolders();
+}
+async function loadFmFolders(){
+  const el=$('fm-fl-list');
+  el.innerHTML='<div style="text-align:center;padding:1rem"><div class="loader" style="margin:0 auto"></div></div>';
+  try{
+    const sn=await getDocs(query(collection(db,'folders'),where('createdBy','==',cUser.uid)));
+    const fl=sn.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if(!fl.length){el.innerHTML='<p style="font-size:13px;color:var(--t3);text-align:center;padding:.8rem">Sizda hali jildlar yo\u2019q</p>';return;}
+    el.innerHTML=fl.map(f=>`<div class="fc" data-fmfid="${f.id}" style="padding:11px 14px;margin-bottom:0;cursor:pointer;transition:all .15s"><div style="font-size:16px">&#x1F4C1;</div><div style="flex:1"><div class="fn" style="font-size:13px">${f.name}</div><div class="fm">${(f.questions||[]).length} ta savol</div></div></div>`).join('');
+    el.querySelectorAll('[data-fmfid]').forEach(c=>c.onclick=()=>{
+      fmSelFid=c.dataset.fmfid;
+      el.querySelectorAll('[data-fmfid]').forEach(x=>x.style.borderColor='');
+      c.style.borderColor='var(--a)';
+      c.style.background='rgba(124,106,247,.08)';
+      el.querySelectorAll('[data-fmfid]').forEach(x=>{if(x!==c)x.style.background='';});
+    });
+  }catch(e){el.innerHTML=`<p style="font-size:13px;color:var(--r);padding:.8rem">Xatolik: ${e.message}</p>`;}
+}
 async function openFmModal(tid){
   ptid=tid;const td=await getDoc(doc(db,'tests',tid));if(!td.exists())return;const t=td.data();
+  fmMode='new';fmSelFid=null;
   $('fm-n').value=t.name;
   $('fm-st').innerHTML=t.status==='public'?'<span class="bdg bdg-pub">Public</span>':'<span class="bdg bdg-prv">Private</span>';
   $('fm-qc').textContent=(t.questions||[]).length;
+  $('fm-tab-new').className='tab on';$('fm-tab-ex').className='tab';
+  $('fm-pane-new').style.display='block';$('fm-pane-ex').style.display='none';
   $('fm-bg').style.display='flex';setTimeout(()=>$('fm-n').focus(),100);
 }
 async function cFmSave(){
-  const name=$('fm-n').value.trim();if(!name){alert('Jild nomi!');return;}
   const b=$('btn-fmc');b.disabled=true;b.textContent='...';
   try{
     const td=await getDoc(doc(db,'tests',ptid));const t=td.data();
-    await addDoc(collection(db,'folders'),{name,testId:ptid,questions:t.questions,status:t.status,isPremium:t.isPremium||false,price:t.price||0,createdBy:cUser.uid,createdByUsername:cUname,createdAt:serverTimestamp()});
-    $('fm-bg').style.display='none';ptid=null;alert(`"${name}" jildga saqlandi!`);
+    if(fmMode==='new'){
+      const name=$('fm-n').value.trim();if(!name){alert('Jild nomi!');b.disabled=false;b.textContent='Saqlash';return;}
+      await addDoc(collection(db,'folders'),{name,testId:ptid,questions:t.questions,status:t.status,isPremium:t.isPremium||false,price:t.price||0,shuffleMode:t.shuffleMode||'none',createdBy:cUser.uid,createdByUsername:cUname,createdAt:serverTimestamp()});
+      $('fm-bg').style.display='none';ptid=null;alert(`"${name}" jildga saqlandi!`);
+    }else{
+      if(!fmSelFid){alert('Jildni tanlang!');b.disabled=false;b.textContent='Saqlash';return;}
+      const fd=await getDoc(doc(db,'folders',fmSelFid));if(!fd.exists())return;
+      const f=fd.data();
+      const merged=[...(f.questions||[]),...(t.questions||[])];
+      await updateDoc(doc(db,'folders',fmSelFid),{questions:merged,testId:ptid});
+      $('fm-bg').style.display='none';ptid=null;alert(`Test mavjud jildga qo'shildi!`);
+    }
   }catch(e){alert('Xatolik: '+e.message);}
   b.disabled=false;b.textContent='Saqlash';
 }
@@ -1094,6 +1141,7 @@ function startQuiz(){
     });
   }
   aQs=qs;
+  $('qz-title').textContent=aFolder.name||'';
   go('s-qz');showQ();
 }
 function showQ(){
@@ -1252,7 +1300,7 @@ function doSrch(){
   el.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{
     const ft=allTs.find(x=>x.id===b.dataset.st);if(!ft)return;
     closeSrch();pMode='fl';
-    aFolder={id:ft.id,name:ft.name,questions:ft.questions||[],status:'public',price:ft.price||0,createdByUsername:ft.createdByUsername};
+    aFolder={id:ft.id,name:ft.name,questions:ft.questions||[],status:'public',price:ft.price||0,createdByUsername:ft.createdByUsername,shuffleMode:ft.shuffleMode||'none'};
     aQs=ft.questions||[];openNm();
   });
 }

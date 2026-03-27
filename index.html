@@ -1032,7 +1032,7 @@ async function playDirect(tid){
 }
 async function delTest(tid){if(!confirm("O'chirasizmi?"))return;await deleteDoc(doc(db,'tests',tid));loadMT();}
 let fmMode='new';let fmSelFid=null;
-function fmTab(tab){
+window.fmTab=function(tab){
   fmMode=tab;fmSelFid=null;
   $('fm-tab-new').className='tab'+(tab==='new'?' on':'');
   $('fm-tab-ex').className='tab'+(tab==='ex'?' on':'');
@@ -1080,8 +1080,8 @@ async function cFmSave(){
       const fd=await getDoc(doc(db,'folders',fmSelFid));if(!fd.exists())return;
       const f=fd.data();
       const merged=[...(f.questions||[]),...(t.questions||[])];
-      await updateDoc(doc(db,'folders',fmSelFid),{questions:merged,testId:ptid});
-      $('fm-bg').style.display='none';ptid=null;alert(`Test mavjud jildga qo'shildi!`);
+      await updateDoc(doc(db,'folders',fmSelFid),{questions:merged});
+      $('fm-bg').style.display='none';ptid=null;alert(`Savollar mavjud jildga qo\u2019shildi!`);
     }
   }catch(e){alert('Xatolik: '+e.message);}
   b.disabled=false;b.textContent='Saqlash';

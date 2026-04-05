@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
@@ -1085,7 +1085,9 @@ async function cFmSave(){
     if(fmMode==='new'){
       const name=$('fm-n').value.trim();
       if(!name){alert('Jild nomi kiriting!');b.disabled=false;b.textContent='Saqlash';return;}
-      await addDoc(collection(db,'folders'),{name,testIds:[ptid],createdBy:cUser.uid,createdByUsername:cUname,createdAt:serverTimestamp()});
+      const tdSnap=await getDoc(doc(db,'tests',ptid));
+      const tStatus=tdSnap.exists()?(tdSnap.data().status||'private'):'private';
+      await addDoc(collection(db,'folders'),{name,testIds:[ptid],status:tStatus,createdBy:cUser.uid,createdByUsername:cUname,createdAt:serverTimestamp()});
       $('fm-bg').style.display='none';ptid=null;
       alert('"'+name+'" jildi yaratildi va test saqlandi!');
     }else{
@@ -1094,7 +1096,10 @@ async function cFmSave(){
       if(!fd.exists()){alert('Jild topilmadi!');b.disabled=false;b.textContent='Saqlash';return;}
       const ids=fd.data().testIds||[];
       if(ids.includes(ptid)){alert('Bu test allaqachon ushbu jildda bor!');b.disabled=false;b.textContent='Saqlash';return;}
-      await updateDoc(doc(db,'folders',fmSelFid),{testIds:[...ids,ptid]});
+      const tdSnap2=await getDoc(doc(db,'tests',ptid));
+      const tStatus2=tdSnap2.exists()?(tdSnap2.data().status||'private'):'private';
+      const newStatus=tStatus2==='public'?'public':(fd.data().status||'private');
+      await updateDoc(doc(db,'folders',fmSelFid),{testIds:[...ids,ptid],status:newStatus});
       $('fm-bg').style.display='none';ptid=null;
       alert('Test jildga qo\u2019shildi!');
     }
@@ -1105,10 +1110,18 @@ async function loadFl(){
   const el=$('fl-l');
   el.innerHTML='<div style="text-align:center;padding:2rem"><div class="loader" style="margin:0 auto"></div></div>';
   try{
-    const sn=await getDocs(query(collection(db,'folders'),where('createdBy','==',cUser.uid)));
-    allFl=sn.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const[s1,s2]=await Promise.all([
+      getDocs(query(collection(db,'folders'),where('status','==','public'))),
+      getDocs(query(collection(db,'folders'),where('createdBy','==',cUser.uid)))
+    ]);
+    const seen=new Set();allFl=[];
+    [...s1.docs,...s2.docs].forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);allFl.push({id:d.id,...d.data()});}});
+    allFl.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     if(!allFl.length){el.innerHTML='<p class="muted" style="text-align:center;padding:2rem">Hali jildlar yo\u2019q. Testlardan jild yarating.</p>';return;}
-    el.innerHTML=allFl.map((f,i)=>`<div class="fc" data-fli="${i}" style="cursor:pointer"><div style="font-size:20px">&#x1F4C1;</div><div style="flex:1"><div class="fn">${f.name}</div><div class="fm">${(f.testIds||[]).length} ta test &middot; @${f.createdByUsername}</div></div><span style="color:var(--t2);font-size:18px">&#x203A;</span></div>`).join('');
+    el.innerHTML=allFl.map((f,i)=>{
+      const isOwner=f.createdByUsername===cUname;
+      return`<div class="fc" data-fli="${i}" style="cursor:pointer"><div style="font-size:20px">&#x1F4C1;</div><div style="flex:1"><div class="fn">${f.name}</div><div class="fm">${(f.testIds||[]).length} ta test &middot; @${f.createdByUsername}</div></div>${isOwner?'<span class="bdg bdg-prv" style="font-size:10px;margin-right:4px">Mening</span>':''}<span style="color:var(--t2);font-size:18px">&#x203A;</span></div>`;
+    }).join('');
     el.querySelectorAll('[data-fli]').forEach(c=>c.onclick=()=>openFolderDetail(allFl[+c.dataset.fli]));
   }catch(e){el.innerHTML=`<p class="muted" style="padding:2rem;text-align:center">Xatolik: ${e.message}</p>`;}
 }
